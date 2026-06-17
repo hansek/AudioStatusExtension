@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "AudioStatusExtension (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "AudioStatusExtension (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

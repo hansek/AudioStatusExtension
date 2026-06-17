@@ -1,0 +1,111 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.vcxproj.user
+*.vc.db
+*.VC.db
+*.opendb
+*.cache
+*.ilk
+*.iobj
+*.ipdb
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+*.vspscc
+*.vssscc
+.builds
+
+# Rider and ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+
+# Test results and coverage
+[Tt]est[Rr]esult*/
+[Tt]est[Rr]esults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Publish and packaging output
+[Aa]pp[Pp]ackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+*.appinstaller
+*.appxsym
+*.cer
+*.pfx
+*.p12
+*.pvk
+*.key
+*.snk
+
+# Local secrets and environment overrides
+.env
+.env.*
+*.secrets.json
+
+# Windows and filesystem noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# OS/editor temp files
+*.swp
+*.swo
+*~
+.DS_Store

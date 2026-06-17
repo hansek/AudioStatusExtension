@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+PackageIdentifier: JanTezner.AudioStatus
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: Jan Tezner
+PackageName: Audio Status
+ShortDescription: View and switch Windows audio input and output devices from Command Palette.
+Description: Audio Status is a Microsoft PowerToys Command Palette extension for viewing and switching Windows audio input and output devices.
+Moniker: audio-status
+Tags:
+- audio
+- command-palette
+- powertoys
+- sound
+- windows
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0

@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+PackageIdentifier: JanTezner.AudioStatus
+PackageVersion: 0.1.0
+MinimumOSVersion: 10.0.19041.0
+InstallModes:
+- interactive
+- silent
+InstallerType: msix
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/hansek/AudioStatusExtension/releases/download/v0.1.0/AudioStatusExtension_0.1.0.0_x64.msix
+  InstallerSha256: REPLACE_WITH_X64_MSIX_SHA256
+  SignatureSha256: REPLACE_WITH_X64_SIGNATURE_SHA256
+- Architecture: arm64
+  InstallerUrl: https://github.com/hansek/AudioStatusExtension/releases/download/v0.1.0/AudioStatusExtension_0.1.0.0_arm64.msix
+  InstallerSha256: REPLACE_WITH_ARM64_MSIX_SHA256
+  SignatureSha256: REPLACE_WITH_ARM64_SIGNATURE_SHA256
+ManifestType: installer
+ManifestVersion: 1.10.0
