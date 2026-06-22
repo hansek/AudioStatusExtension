@@ -378,7 +378,15 @@ internal static partial class AudioDeviceService
         {
             if (flow is EDataFlow.Render or EDataFlow.Capture)
             {
-                _onChanged();
+                try
+                {
+                    _onChanged();
+                }
+                catch
+                {
+                    // Exceptions must never escape a native Core Audio callback. Doing so can
+                    // cause Windows to stop delivering notifications to this client.
+                }
             }
 
             return 0;

@@ -12,20 +12,23 @@ namespace AudioStatusExtension;
 public partial class AudioStatusExtensionCommandsProvider : CommandProvider
 {
     private readonly ICommandItem[] _commands;
+    private readonly AudioStatusExtensionPage _page;
     private readonly AudioStatusDockBand _dockBand;
     private readonly IDisposable _audioDeviceWatcher;
     private readonly Timer _refreshTimer;
+    private readonly object _refreshLock = new();
 
     public AudioStatusExtensionCommandsProvider()
     {
         DisplayName = "Audio Status";
         Icon = IconHelpers.FromRelativePath("Public\\StoreLogo.png");
-        _dockBand = new AudioStatusDockBand();
+        _page = new AudioStatusExtensionPage(Refresh);
+        _dockBand = new AudioStatusDockBand(Refresh);
         _commands = [
-            new CommandItem(new AudioStatusExtensionPage()) { Title = DisplayName },
+            new CommandItem(_page) { Title = DisplayName },
         ];
-        _audioDeviceWatcher = AudioDeviceService.WatchDefaultDeviceChanges(RefreshDockBand);
-        _refreshTimer = new Timer(RefreshDockBand, null, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1));
+        _audioDeviceWatcher = AudioDeviceService.WatchDefaultDeviceChanges(Refresh);
+        _refreshTimer = new Timer(Refresh, null, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1));
     }
 
     public override ICommandItem[] TopLevelCommands()
@@ -46,13 +49,25 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
         GC.SuppressFinalize(this);
     }
 
-    private void RefreshDockBand()
+    private void Refresh()
     {
-        _dockBand.Refresh();
+        lock (_refreshLock)
+        {
+            try
+            {
+                _dockBand.Refresh();
+                _page.Refresh();
+            }
+            catch
+            {
+                // Timer and native audio callbacks run outside the Command Palette call stack.
+                // A transient refresh failure must not terminate the extension or its watcher.
+            }
+        }
     }
 
-    private void RefreshDockBand(object? state)
+    private void Refresh(object? state)
     {
-        RefreshDockBand();
+        Refresh();
     }
 }
