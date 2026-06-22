@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
 namespace AudioStatusExtension;
@@ -11,15 +10,11 @@ internal static partial class AudioDeviceService
     private const int DeviceStateActive = 0x00000001;
     private static readonly string[] RegistryDeviceNameProperties =
     [
-        "{a45c254e-df1c-4efd-8020-67d146a850e0},14",
-        "{b3f8fa53-0004-438e-9003-51a46e139bfc},6",
         "{026e516e-b814-414b-83cd-856d6fef4822},2",
+        "{b3f8fa53-0004-438e-9003-51a46e139bfc},6",
+        "{a45c254e-df1c-4efd-8020-67d146a850e0},14",
         "{a45c254e-df1c-4efd-8020-67d146a850e0},2",
     ];
-
-    private static readonly Regex DeviceKindPrefixPattern = new(
-        @"^\s*(?:Reproduktory|Reproduktor|Sluchátka|Sluchátko|Mikrofon|Speakers|Speaker|Headphones|Headset|Microphone)\s*\((.+)\)\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public static IDisposable WatchDefaultDeviceChanges(Action onChanged)
     {
@@ -314,17 +309,30 @@ internal static partial class AudioDeviceService
 
     private static string GetDeviceName(IPropertyStore store)
     {
-        var key = PropertyKeys.DeviceFriendlyName;
-        Marshal.ThrowExceptionForHR(store.GetValue(ref key, out var value));
+        foreach (var propertyKey in PropertyKeys.DeviceNames)
+        {
+            var key = propertyKey;
+            var result = store.GetValue(ref key, out var value);
+            if (result < 0)
+            {
+                continue;
+            }
 
-        try
-        {
-            return CleanDeviceName(value.GetString());
+            try
+            {
+                var deviceName = value.GetString();
+                if (!string.IsNullOrWhiteSpace(deviceName))
+                {
+                    return deviceName.Trim();
+                }
+            }
+            finally
+            {
+                Marshal.ThrowExceptionForHR(PropVariantClear(ref value));
+            }
         }
-        finally
-        {
-            Marshal.ThrowExceptionForHR(PropVariantClear(ref value));
-        }
+
+        return "Unknown device";
     }
 
     private static string CleanDeviceName(string? deviceName)
@@ -334,8 +342,7 @@ internal static partial class AudioDeviceService
             return "Unknown device";
         }
 
-        var match = DeviceKindPrefixPattern.Match(deviceName);
-        return match.Success ? match.Groups[1].Value : deviceName;
+        return deviceName.Trim();
     }
 
     private static EDataFlow ToDataFlow(AudioDeviceKind kind)
@@ -432,11 +439,22 @@ internal static partial class AudioDeviceService
 
     private static class PropertyKeys
     {
-        public static PropertyKey DeviceFriendlyName => new()
+        public static readonly PropertyKey[] DeviceNames =
+        [
+            Create("026e516e-b814-414b-83cd-856d6fef4822", 2),
+            Create("b3f8fa53-0004-438e-9003-51a46e139bfc", 6),
+            Create("a45c254e-df1c-4efd-8020-67d146a850e0", 14),
+            Create("a45c254e-df1c-4efd-8020-67d146a850e0", 2),
+        ];
+
+        private static PropertyKey Create(string formatId, uint propertyId)
         {
-            FormatId = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),
-            PropertyId = 14,
-        };
+            return new PropertyKey
+            {
+                FormatId = new Guid(formatId),
+                PropertyId = propertyId,
+            };
+        }
     }
 
     private enum EDataFlow
