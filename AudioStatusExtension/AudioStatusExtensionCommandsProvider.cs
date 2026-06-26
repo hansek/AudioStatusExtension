@@ -15,20 +15,22 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
     private readonly AudioStatusExtensionPage _page;
     private readonly AudioStatusDockBand _dockBand;
     private readonly IDisposable _audioDeviceWatcher;
-    private readonly Timer _refreshTimer;
+    private readonly Timer _refreshDebounceTimer;
+    private readonly Action _scheduleRefreshCallback;
     private readonly object _refreshLock = new();
 
     public AudioStatusExtensionCommandsProvider()
     {
         DisplayName = "Audio Status";
         Icon = IconHelpers.FromRelativePath("Public\\StoreLogo.png");
-        _page = new AudioStatusExtensionPage(Refresh);
-        _dockBand = new AudioStatusDockBand(Refresh);
+        _scheduleRefreshCallback = CreateWeakScheduleRefreshCallback(this);
+        _page = new AudioStatusExtensionPage(_scheduleRefreshCallback);
+        _dockBand = new AudioStatusDockBand(_scheduleRefreshCallback);
         _commands = [
             new CommandItem(_page) { Title = DisplayName },
         ];
-        _audioDeviceWatcher = AudioDeviceService.WatchDefaultDeviceChanges(Refresh);
-        _refreshTimer = new Timer(Refresh, null, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1));
+        _refreshDebounceTimer = new Timer(Refresh, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _audioDeviceWatcher = AudioDeviceService.WatchDefaultDeviceChanges(_scheduleRefreshCallback);
     }
 
     public override ICommandItem[] TopLevelCommands()
@@ -43,10 +45,33 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
 
     public override void Dispose()
     {
-        _refreshTimer.Dispose();
         _audioDeviceWatcher.Dispose();
+        _refreshDebounceTimer.Dispose();
         base.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private void ScheduleRefresh()
+    {
+        try
+        {
+            _refreshDebounceTimer.Change(TimeSpan.FromMilliseconds(250), Timeout.InfiniteTimeSpan);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static Action CreateWeakScheduleRefreshCallback(AudioStatusExtensionCommandsProvider provider)
+    {
+        var weakProvider = new WeakReference<AudioStatusExtensionCommandsProvider>(provider);
+        return () =>
+        {
+            if (weakProvider.TryGetTarget(out var target))
+            {
+                target.ScheduleRefresh();
+            }
+        };
     }
 
     private void Refresh()
@@ -56,7 +81,6 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
             try
             {
                 _dockBand.Refresh();
-                _page.Refresh();
             }
             catch
             {

@@ -17,6 +17,18 @@ internal static class AudioStatusItems
         ];
     }
 
+    public static void UpdateCurrentDeviceTitles(IListItem[] items)
+    {
+        if (items.Length < 2)
+        {
+            return;
+        }
+
+        var snapshot = AudioDeviceService.GetSnapshot();
+        UpdateTitle(items[0], snapshot.OutputDeviceName);
+        UpdateTitle(items[1], snapshot.InputDeviceName);
+    }
+
     private static ListItem CreateItem(AudioDeviceKind kind, string deviceName, string iconGlyph, Action onChanged)
     {
         var title = kind == AudioDeviceKind.Output ? "Output" : "Input";
@@ -61,20 +73,25 @@ internal static class AudioStatusItems
 
         return commands;
     }
+
+    private static void UpdateTitle(IListItem item, string title)
+    {
+        if (item is ListItem listItem && listItem.Title != title)
+        {
+            listItem.Title = title;
+        }
+    }
 }
 
 internal sealed partial class AudioStatusDockBand : WrappedDockItem
 {
-    private readonly Action _onChanged;
-
     public AudioStatusDockBand(Action onChanged)
         : base(AudioStatusItems.Create(onChanged), "audio-status.default-devices", "Audio Status")
     {
-        _onChanged = onChanged;
     }
 
     public void Refresh()
     {
-        Items = AudioStatusItems.Create(_onChanged);
+        AudioStatusItems.UpdateCurrentDeviceTitles(Items);
     }
 }

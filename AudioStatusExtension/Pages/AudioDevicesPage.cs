@@ -56,7 +56,6 @@ internal sealed partial class AudioDevicesPage : ListPage
 
     private void Refresh()
     {
-        RaiseItemsChanged();
         _onChanged();
     }
 }
