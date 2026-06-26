@@ -11,7 +11,7 @@
   <Identity
     Name="JanTezner.AudioStatusforCommandPalette"
     Publisher="CN=3EAEAC55-63BF-4FAD-B765-EC11C364E23F"
-    Version="0.1.0.0" />
+    Version="0.1.2.0" />
 
   <Properties>
     <DisplayName>Audio Status for Command Palette</DisplayName>

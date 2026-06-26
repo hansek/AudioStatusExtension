@@ -20,6 +20,15 @@ Project repository: https://github.com/hansek/AudioStatusExtension
 
 Publishing notes and gallery submission templates are in [PUBLISHING.md](PUBLISHING.md).
 
+### Release Build in Visual Studio
+
+The simplest way to create a release package:
+
+1. Right-click the `AudioStatusExtension` project.
+2. Select `Publish...`.
+3. Choose the `store-x64` profile.
+4. Click `Publish`.
+
 ## Privacy
 
 Privacy policy: [PRIVACY.md](PRIVACY.md)
