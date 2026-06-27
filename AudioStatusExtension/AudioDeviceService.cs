@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
+using Windows.Foundation;
+using Windows.Media.Devices;
 
 namespace AudioStatusExtension;
 
@@ -23,14 +25,30 @@ internal static partial class AudioDeviceService
             return NullDisposable.Instance;
         }
 
+        var watchers = new List<IDisposable>(2);
+
         try
         {
-            return new AudioDeviceWatcher(onChanged);
+            watchers.Add(new AudioDeviceWatcher(onChanged));
         }
         catch (Exception ex) when (ex is COMException or InvalidCastException or NotSupportedException)
         {
-            return NullDisposable.Instance;
         }
+
+        try
+        {
+            watchers.Add(new MediaDeviceWatcher(onChanged));
+        }
+        catch (Exception)
+        {
+        }
+
+        return watchers.Count switch
+        {
+            0 => NullDisposable.Instance,
+            1 => watchers[0],
+            _ => new CompositeDisposable(watchers),
+        };
     }
 
     public static AudioStatusSnapshot GetSnapshot()
@@ -163,8 +181,25 @@ internal static partial class AudioDeviceService
         }
         catch (Exception ex) when (ex is COMException or InvalidCastException or NotSupportedException)
         {
-            return "Unavailable";
+            return GetDefaultDeviceNameFallback(kind);
         }
+    }
+
+    private static string GetDefaultDeviceNameFallback(AudioDeviceKind kind)
+    {
+        var defaultDeviceId = GetDefaultDeviceIdFromMediaDevice(kind);
+        if (!string.IsNullOrWhiteSpace(defaultDeviceId))
+        {
+            foreach (var device in GetRegistryDevices(kind, defaultDeviceId))
+            {
+                if (IsSameEndpointId(device.Id, defaultDeviceId))
+                {
+                    return device.Name;
+                }
+            }
+        }
+
+        return "Unavailable";
     }
 
     private static AudioDeviceInfo[] GetDefaultDeviceFallback(AudioDeviceKind kind)
@@ -225,7 +260,7 @@ internal static partial class AudioDeviceService
 
             var endpointId = BuildEndpointId(kind, endpointKeyName);
             var deviceName = GetRegistryDeviceName(endpointKey);
-            devices.Add(new AudioDeviceInfo(endpointId, deviceName, endpointId == defaultDeviceId));
+            devices.Add(new AudioDeviceInfo(endpointId, deviceName, IsSameEndpointId(endpointId, defaultDeviceId)));
         }
 
         return devices.ToArray();
@@ -282,7 +317,7 @@ internal static partial class AudioDeviceService
         }
         catch (Exception ex) when (ex is COMException or InvalidCastException or NotSupportedException)
         {
-            return null;
+            return GetDefaultDeviceIdFromMediaDevice(ToDeviceKind(dataFlow));
         }
         finally
         {
@@ -290,6 +325,22 @@ internal static partial class AudioDeviceService
             {
                 Marshal.ReleaseComObject(enumerator);
             }
+        }
+    }
+
+    private static string? GetDefaultDeviceIdFromMediaDevice(AudioDeviceKind kind)
+    {
+        try
+        {
+            var id = kind == AudioDeviceKind.Output
+                ? MediaDevice.GetDefaultAudioRenderId(AudioDeviceRole.Default)
+                : MediaDevice.GetDefaultAudioCaptureId(AudioDeviceRole.Default);
+
+            return string.IsNullOrWhiteSpace(id) ? null : NormalizeEndpointId(id);
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -348,6 +399,30 @@ internal static partial class AudioDeviceService
     private static EDataFlow ToDataFlow(AudioDeviceKind kind)
     {
         return kind == AudioDeviceKind.Output ? EDataFlow.Render : EDataFlow.Capture;
+    }
+
+    private static AudioDeviceKind ToDeviceKind(EDataFlow dataFlow)
+    {
+        return dataFlow == EDataFlow.Capture ? AudioDeviceKind.Input : AudioDeviceKind.Output;
+    }
+
+    private static bool IsSameEndpointId(string endpointId, string? otherEndpointId)
+    {
+        return !string.IsNullOrWhiteSpace(otherEndpointId)
+            && string.Equals(NormalizeEndpointId(endpointId), NormalizeEndpointId(otherEndpointId), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeEndpointId(string endpointId)
+    {
+        var trimmed = endpointId.Trim();
+        var start = trimmed.IndexOf("{0.0.", StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return trimmed;
+        }
+
+        var end = trimmed.IndexOf('#', start);
+        return (end > start ? trimmed[start..end] : trimmed[start..]).Replace('#', '.');
     }
 
     [DllImport("ole32.dll")]
@@ -425,6 +500,109 @@ internal static partial class AudioDeviceService
                 Marshal.ReleaseComObject(_enumerator);
                 GC.SuppressFinalize(this);
             }
+        }
+    }
+
+    private sealed partial class MediaDeviceWatcher : IDisposable
+    {
+        private readonly Action _onChanged;
+        private readonly TypedEventHandler<object, DefaultAudioRenderDeviceChangedEventArgs> _renderHandler;
+        private readonly TypedEventHandler<object, DefaultAudioCaptureDeviceChangedEventArgs> _captureHandler;
+        private bool _disposed;
+
+        public MediaDeviceWatcher(Action onChanged)
+        {
+            _onChanged = onChanged;
+            _renderHandler = OnRenderChanged;
+            _captureHandler = OnCaptureChanged;
+
+            try
+            {
+                MediaDevice.DefaultAudioRenderDeviceChanged += _renderHandler;
+                MediaDevice.DefaultAudioCaptureDeviceChanged += _captureHandler;
+            }
+            catch
+            {
+                try
+                {
+                    MediaDevice.DefaultAudioRenderDeviceChanged -= _renderHandler;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    MediaDevice.DefaultAudioCaptureDeviceChanged -= _captureHandler;
+                }
+                catch
+                {
+                }
+
+                throw;
+            }
+        }
+
+        private void OnRenderChanged(object sender, DefaultAudioRenderDeviceChangedEventArgs args)
+        {
+            NotifyChanged();
+        }
+
+        private void OnCaptureChanged(object sender, DefaultAudioCaptureDeviceChangedEventArgs args)
+        {
+            NotifyChanged();
+        }
+
+        private void NotifyChanged()
+        {
+            try
+            {
+                _onChanged();
+            }
+            catch
+            {
+                // WinRT device change events should not be able to terminate the extension.
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            MediaDevice.DefaultAudioRenderDeviceChanged -= _renderHandler;
+            MediaDevice.DefaultAudioCaptureDeviceChanged -= _captureHandler;
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    private sealed partial class CompositeDisposable : IDisposable
+    {
+        private readonly IDisposable[] _disposables;
+        private bool _disposed;
+
+        public CompositeDisposable(IEnumerable<IDisposable> disposables)
+        {
+            _disposables = [.. disposables];
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            foreach (var disposable in _disposables)
+            {
+                disposable.Dispose();
+            }
+
+            GC.SuppressFinalize(this);
         }
     }
 
