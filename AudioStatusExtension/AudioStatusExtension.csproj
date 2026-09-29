@@ -14,7 +14,7 @@
 
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <AppxPackageVersion>0.1.11.0</AppxPackageVersion>
+    <AppxPackageVersion>0.1.12.0</AppxPackageVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 

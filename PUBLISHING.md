@@ -10,8 +10,8 @@ This repo is prepared for publishing Audio Status as a Microsoft PowerToys Comma
    - `Package/Identity/Name`: `JanTezner.AudioStatusforCommandPalette`
    - `Package/Identity/Publisher`: `CN=3EAEAC55-63BF-4FAD-B765-EC11C364E23F`
    - `Package/Properties/PublisherDisplayName`: `Jan Tezner`
-4. Run `Build-Store.ps1` to build the combined x64 and ARM64 package for release `0.1.11`.
-5. Upload `AudioStatusExtension_0.1.11.0_x64_arm64_bundle.msixupload` to the Microsoft Store submission.
+4. Run `Build-Store.ps1` to build the combined x64 and ARM64 package for release `0.1.12`.
+5. Upload `AudioStatusExtension_0.1.12.0_x64_arm64_bundle.msixupload` to the Microsoft Store submission.
 6. Once the product is live, update the Command Palette gallery install source to Microsoft Store product `9NRHJDKHMOQS`.
 7. Submit `distribution/cmdpal-gallery/extensions/jan-tezner/audio-status/` to `microsoft/CmdPal-Extensions` under `extensions/jan-tezner/audio-status/`.
 

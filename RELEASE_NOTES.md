@@ -1,5 +1,11 @@
 # Release notes
 
+## 0.1.12
+
+- Added commands and context menu actions to switch media and call devices together, separately for output and input.
+- Combined device lists show which devices are currently used for media, calls, or both.
+- Refresh device status and report partial changes when switching defaults fails.
+
 ## 0.1.11
 
 - Added a setting to choose between Windows display names and audio adapter names throughout the extension.
