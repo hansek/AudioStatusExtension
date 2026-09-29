@@ -19,6 +19,8 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
     private readonly AudioDevicesPage _communicationsOutputDevicesPage;
     private readonly AudioDevicesPage _inputDevicesPage;
     private readonly AudioDevicesPage _communicationsInputDevicesPage;
+    private readonly AudioDevicesPage _combinedOutputDevicesPage;
+    private readonly AudioDevicesPage _combinedInputDevicesPage;
     private readonly AudioStatusDockBand _dockBand;
     private readonly Timer _refreshDebounceTimer;
     private readonly Timer _listenerHealthTimer;
@@ -45,6 +47,8 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
         _communicationsOutputDevicesPage = new AudioDevicesPage(AudioDeviceTarget.CommunicationsOutput, _scheduleRefreshCallback);
         _inputDevicesPage = new AudioDevicesPage(AudioDeviceTarget.Input, _scheduleRefreshCallback);
         _communicationsInputDevicesPage = new AudioDevicesPage(AudioDeviceTarget.CommunicationsInput, _scheduleRefreshCallback);
+        _combinedOutputDevicesPage = new AudioDevicesPage(AudioDeviceTarget.CombinedOutput, _scheduleRefreshCallback);
+        _combinedInputDevicesPage = new AudioDevicesPage(AudioDeviceTarget.CombinedInput, _scheduleRefreshCallback);
         _dockBand = new AudioStatusDockBand(_scheduleRefreshCallback);
         _commands = [
             new CommandItem(_page) { Title = DisplayName },
@@ -60,6 +64,12 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
                 Subtitle = "Choose the speakers or headphones used for calls",
                 Icon = new IconInfo("\uE767"),
             },
+            new CommandItem(_combinedOutputDevicesPage)
+            {
+                Title = AudioDevicesPage.GetSwitchCommandName(AudioDeviceTarget.CombinedOutput),
+                Subtitle = "Set the same speakers or headphones for media and calls",
+                Icon = new IconInfo("\uE767"),
+            },
             new CommandItem(_inputDevicesPage)
             {
                 Title = "Switch input device",
@@ -70,6 +80,12 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
             {
                 Title = "Switch communications input device",
                 Subtitle = "Choose the microphone used for calls",
+                Icon = new IconInfo("\uE720"),
+            },
+            new CommandItem(_combinedInputDevicesPage)
+            {
+                Title = AudioDevicesPage.GetSwitchCommandName(AudioDeviceTarget.CombinedInput),
+                Subtitle = "Set the same microphone for media and calls",
                 Icon = new IconInfo("\uE720"),
             },
         ];
@@ -176,6 +192,8 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
                 _communicationsOutputDevicesPage.RefreshItems();
                 _inputDevicesPage.RefreshItems();
                 _communicationsInputDevicesPage.RefreshItems();
+                _combinedOutputDevicesPage.RefreshItems();
+                _combinedInputDevicesPage.RefreshItems();
             }
             catch (Exception ex)
             {
@@ -219,6 +237,8 @@ public partial class AudioStatusExtensionCommandsProvider : CommandProvider
                     _communicationsOutputDevicesPage.RefreshItems();
                     _inputDevicesPage.RefreshItems();
                     _communicationsInputDevicesPage.RefreshItems();
+                    _combinedOutputDevicesPage.RefreshItems();
+                    _combinedInputDevicesPage.RefreshItems();
                 }
 
                 if (stateChanged || callbackStale || !_listenerRegistrationSucceeded)

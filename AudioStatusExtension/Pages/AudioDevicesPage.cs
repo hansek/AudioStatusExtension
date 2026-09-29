@@ -14,8 +14,10 @@ internal sealed partial class AudioDevicesPage : ListPage
         _target = target;
         _onChanged = onChanged;
         Icon = new IconInfo(GetIconGlyph(target));
-        Title = $"{GetTargetLabel(target)} devices";
-        Name = $"Switch {GetTargetLabel(target).ToLowerInvariant()} device";
+        Title = target.Role == AudioEndpointRole.Both
+            ? $"{target.Kind} devices for media and calls"
+            : $"{GetTargetLabel(target)} devices";
+        Name = GetSwitchCommandName(target);
     }
 
     public override IListItem[] GetItems()
@@ -41,7 +43,7 @@ internal sealed partial class AudioDevicesPage : ListPage
             items[index] = new ListItem(new SetDefaultAudioDeviceCommand(_target, device, Refresh))
             {
                 Title = device.Name,
-                Subtitle = device.IsDefault ? $"{GetTargetLabel(_target)} - current" : GetTargetLabel(_target),
+                Subtitle = GetDeviceSubtitle(_target, device),
                 Icon = Icon,
             };
         }
@@ -58,10 +60,35 @@ internal sealed partial class AudioDevicesPage : ListPage
     {
         return target switch
         {
+            { Kind: AudioDeviceKind.Output, Role: AudioEndpointRole.Both } => "Output for media and calls",
+            { Kind: AudioDeviceKind.Input, Role: AudioEndpointRole.Both } => "Input for media and calls",
             { Kind: AudioDeviceKind.Output, Role: AudioEndpointRole.Communications } => "Communications output",
             { Kind: AudioDeviceKind.Input, Role: AudioEndpointRole.Communications } => "Communications input",
             { Kind: AudioDeviceKind.Output } => "Output",
             _ => "Input",
+        };
+    }
+
+    internal static string GetSwitchCommandName(AudioDeviceTarget target)
+    {
+        return target.Role == AudioEndpointRole.Both
+            ? $"Switch {target.Kind.ToString().ToLowerInvariant()} device for media and calls"
+            : $"Switch {GetTargetLabel(target).ToLowerInvariant()} device";
+    }
+
+    internal static string GetDeviceSubtitle(AudioDeviceTarget target, AudioDeviceInfo device)
+    {
+        if (target.Role != AudioEndpointRole.Both)
+        {
+            return device.IsDefault ? $"{GetTargetLabel(target)} - current" : GetTargetLabel(target);
+        }
+
+        return (device.IsMediaDefault, device.IsCommunicationsDefault) switch
+        {
+            (true, true) => "Current for media and calls",
+            (true, false) => "Current for media",
+            (false, true) => "Current for calls",
+            _ => "Set for media and calls",
         };
     }
 
@@ -97,21 +124,23 @@ internal sealed partial class SetDefaultAudioDeviceCommand : InvokableCommand
         {
             AudioDeviceService.SetDefaultDevice(_target, _device.Id);
 
-            try
-            {
-                _onChanged();
-            }
-            catch
-            {
-                // The device was changed successfully. A UI refresh failure is recovered by
-                // the provider's audio notification or periodic refresh.
-            }
-
             return CommandResult.Hide();
         }
         catch (Exception ex)
         {
             return CommandResult.ShowToast($"Could not set default device: {ex.Message}");
+        }
+        finally
+        {
+            try
+            {
+                // A failed switch can still have changed some roles.
+                _onChanged();
+            }
+            catch
+            {
+                // Notifications or the periodic refresh recover a UI refresh failure.
+            }
         }
     }
 }

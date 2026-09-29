@@ -90,6 +90,32 @@ internal static partial class AudioDeviceService
 
     public static AudioDeviceInfo[] GetDevices(AudioDeviceTarget target)
     {
+        if (target.Role != AudioEndpointRole.Both)
+        {
+            return GetDevicesForRole(target);
+        }
+
+        var mediaTarget = new AudioDeviceTarget(target.Kind, AudioEndpointRole.Default);
+        var callsTarget = new AudioDeviceTarget(target.Kind, AudioEndpointRole.Communications);
+        var devices = GetDevicesForRole(mediaTarget);
+        var callsDeviceId = GetDefaultDeviceId(callsTarget);
+        for (var index = 0; index < devices.Length; index++)
+        {
+            var device = devices[index];
+            var isCallsDefault = IsSameEndpointId(device.Id, callsDeviceId);
+            devices[index] = device with
+            {
+                IsDefault = device.IsDefault && isCallsDefault,
+                IsMediaDefault = device.IsDefault,
+                IsCommunicationsDefault = isCallsDefault,
+            };
+        }
+
+        return devices;
+    }
+
+    private static AudioDeviceInfo[] GetDevicesForRole(AudioDeviceTarget target)
+    {
         if (!OperatingSystem.IsWindows())
         {
             return [];
@@ -156,17 +182,25 @@ internal static partial class AudioDeviceService
 
         var policyConfig = ActivateComObject<IPolicyConfig>(PolicyConfigClassId, PolicyConfigInterfaceId);
 
+        var changedRoles = 0;
         try
         {
-            if (target.Role == AudioEndpointRole.Communications)
+            if (target.Role != AudioEndpointRole.Communications)
+            {
+                Marshal.ThrowExceptionForHR(policyConfig.SetDefaultEndpoint(deviceId, ERole.Console));
+                changedRoles++;
+                Marshal.ThrowExceptionForHR(policyConfig.SetDefaultEndpoint(deviceId, ERole.Multimedia));
+                changedRoles++;
+            }
+
+            if (target.Role is AudioEndpointRole.Communications or AudioEndpointRole.Both)
             {
                 Marshal.ThrowExceptionForHR(policyConfig.SetDefaultEndpoint(deviceId, ERole.Communications));
             }
-            else
-            {
-                Marshal.ThrowExceptionForHR(policyConfig.SetDefaultEndpoint(deviceId, ERole.Console));
-                Marshal.ThrowExceptionForHR(policyConfig.SetDefaultEndpoint(deviceId, ERole.Multimedia));
-            }
+        }
+        catch (Exception ex) when (changedRoles > 0)
+        {
+            throw new InvalidOperationException("Some audio defaults changed, but the switch could not be completed. Check the current devices and try again.", ex);
         }
         finally
         {
@@ -1077,6 +1111,7 @@ internal enum AudioEndpointRole
 {
     Default,
     Communications,
+    Both,
 }
 
 internal readonly record struct AudioDeviceTarget(AudioDeviceKind Kind, AudioEndpointRole Role)
@@ -1085,6 +1120,8 @@ internal readonly record struct AudioDeviceTarget(AudioDeviceKind Kind, AudioEnd
     public static readonly AudioDeviceTarget CommunicationsOutput = new(AudioDeviceKind.Output, AudioEndpointRole.Communications);
     public static readonly AudioDeviceTarget Input = new(AudioDeviceKind.Input, AudioEndpointRole.Default);
     public static readonly AudioDeviceTarget CommunicationsInput = new(AudioDeviceKind.Input, AudioEndpointRole.Communications);
+    public static readonly AudioDeviceTarget CombinedOutput = new(AudioDeviceKind.Output, AudioEndpointRole.Both);
+    public static readonly AudioDeviceTarget CombinedInput = new(AudioDeviceKind.Input, AudioEndpointRole.Both);
 }
 
 internal enum AudioDeviceNameFormat
@@ -1093,4 +1130,9 @@ internal enum AudioDeviceNameFormat
     AudioAdapter,
 }
 
-internal sealed record AudioDeviceInfo(string Id, string Name, bool IsDefault);
+internal sealed record AudioDeviceInfo(string Id, string Name, bool IsDefault)
+{
+    public bool IsMediaDefault { get; init; }
+
+    public bool IsCommunicationsDefault { get; init; }
+}

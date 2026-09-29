@@ -100,6 +100,15 @@ internal static class AudioStatusItems
             });
         }
 
+        var combinedTarget = target.Kind == AudioDeviceKind.Output
+            ? AudioDeviceTarget.CombinedOutput
+            : AudioDeviceTarget.CombinedInput;
+        commands.Add(new CommandContextItem(new AudioDevicesPage(combinedTarget, onChanged))
+        {
+            Title = AudioDevicesPage.GetSwitchCommandName(combinedTarget),
+            Icon = icon,
+        });
+
         return [.. commands];
     }
 
